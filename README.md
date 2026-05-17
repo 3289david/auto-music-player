@@ -294,7 +294,10 @@ python -m PyInstaller build.spec
 
 ## 📝 라이선스
 
-원본 코드 기반: © 2026 신재원  
+원본 코드 기반: © 2026 신재원 ,정규환 
+I have gotten licensed from these developers.
+Github: jaewondeveloper
+Repo: https://github.com/jaewondeveloper/automusicplayer
 클라우드 연동 확장: 본 저장소
 
 ---
