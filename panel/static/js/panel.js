@@ -957,25 +957,29 @@
     if (btnSave) {
       btnSave.addEventListener('click', async () => {
         const hint = document.getElementById('cfSaveHint');
+        const workerUrl = (document.getElementById('cfWorkerUrl')?.value || '').trim();
+        const cfUser    = (document.getElementById('cfUsername')?.value || 'admin').trim();
+        const cfPw      = document.getElementById('cfPassword')?.value || '1234';
         const body = {
-          cloudflare_worker_url: (document.getElementById('cfWorkerUrl')?.value || '').trim(),
-          cf_username: (document.getElementById('cfUsername')?.value || 'admin').trim(),
+          cloudflare_worker_url: workerUrl,
+          cf_username: cfUser,
+          cf_password: cfPw,
           cf_auto_pull_on_start: document.getElementById('cfAutoPull')?.checked ?? true,
         };
-        const pw = document.getElementById('cfPassword')?.value;
-        if (pw) body.cf_password = pw;
         try {
           const data = await cfRequest('POST', '/api/cf/config', body);
           if (data.ok) {
-            if (hint) { hint.textContent = '✅ 저장됨'; hint.style.color = '#4ade80'; }
+            // Also set local app credentials to match website (admin/1234)
+            await cfRequest('POST', '/api/cf/setup-local-auth', { username: cfUser, password: cfPw });
+            if (hint) { hint.textContent = '✅ 저장 완료 — 앱 로그인도 동기화됨'; hint.style.color = '#22a35a'; }
             loadCfStatus();
           } else {
-            if (hint) { hint.textContent = '❌ 저장 실패'; hint.style.color = '#f87171'; }
+            if (hint) { hint.textContent = '❌ 저장 실패'; hint.style.color = '#c0392b'; }
           }
         } catch (_) {
-          if (hint) { hint.textContent = '❌ 오류'; hint.style.color = '#f87171'; }
+          if (hint) { hint.textContent = '❌ 오류 발생'; hint.style.color = '#c0392b'; }
         }
-        if (hint) setTimeout(() => { hint.textContent = ''; }, 3000);
+        if (hint) setTimeout(() => { hint.textContent = ''; }, 4000);
       });
     }
   };

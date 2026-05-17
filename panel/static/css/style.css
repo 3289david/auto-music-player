@@ -1221,53 +1221,62 @@ body:not(.has-win-chrome) .app-shell {
   }
 }
 
-/* ── Cloudflare 동기화 카드 ──────────────────────────────────────────────── */
+/* ── Cloudflare 동기화 카드 (패널 디자인과 통일) ─────────────────────────── */
 .cf-sync-card {
-  margin-top: 10px;
-  background: linear-gradient(135deg, #1a1f3a 0%, #1e2540 100%);
-  border-color: rgba(108, 99, 255, 0.3);
+  margin-top: 0;
 }
 
 .cf-sync-status {
   font-size: 11px;
-  color: #8890aa;
+  color: var(--sub);
   margin-bottom: 8px;
   text-align: center;
   min-height: 16px;
+  font-weight: 600;
 }
-.cf-sync-status.ok  { color: #4ade80; }
-.cf-sync-status.err { color: #f87171; }
-.cf-sync-status.busy { color: #fbbf24; }
+.cf-sync-status.ok   { color: #22a35a; }
+.cf-sync-status.err  { color: var(--danger); }
+.cf-sync-status.busy { color: #b07c00; }
 
 .btn-cf-push {
-  display: block; width: 100%; margin-bottom: 6px;
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  border-radius: 7px;
-  padding: 8px 12px;
-  font-size: 13px; font-weight: 600;
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  background: #eaf7ee;
+  color: #22a35a;
+  border: 1.5px solid #b3e6c5;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.18s, transform 0.12s;
   text-align: center;
+  font-family: inherit;
 }
-.btn-cf-push:hover:not(:disabled) { background: rgba(34, 197, 94, 0.28); }
-.btn-cf-push:disabled { opacity: .5; cursor: not-allowed; }
+.btn-cf-push:hover:not(:disabled) { background: #d3f0dc; }
+.btn-cf-push:active:not(:disabled) { transform: scale(0.97); }
+.btn-cf-push:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-cf-pull {
-  display: block; width: 100%; margin-bottom: 4px;
-  background: rgba(245, 158, 11, 0.13);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  border-radius: 7px;
-  padding: 8px 12px;
-  font-size: 13px; font-weight: 600;
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  background: #fff8e6;
+  color: #b07c00;
+  border: 1.5px solid #f5d580;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.18s, transform 0.12s;
   text-align: center;
+  font-family: inherit;
 }
-.btn-cf-pull:hover:not(:disabled) { background: rgba(245, 158, 11, 0.26); }
-.btn-cf-pull:disabled { opacity: .5; cursor: not-allowed; }
+.btn-cf-pull:hover:not(:disabled) { background: #fdefc3; }
+.btn-cf-pull:active:not(:disabled) { transform: scale(0.97); }
+.btn-cf-pull:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Cloudflare settings fields */
 .cf-field-row {
@@ -1278,13 +1287,14 @@ body:not(.has-win-chrome) .app-shell {
 }
 .cf-label {
   font-size: 12px;
-  font-weight: 600;
-  color: #8890aa;
+  font-weight: 700;
+  color: var(--sub);
 }
 .cf-save-hint {
   margin-top: 6px;
   font-size: 12px;
-  color: #4ade80;
+  color: #22a35a;
   min-height: 16px;
+  font-weight: 600;
 }
 

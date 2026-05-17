@@ -27,33 +27,24 @@
         <h1 class="sidebar-title">3세대 음방시스템</h1>
         <p class="sidebar-sub">학교 방송 컨트롤</p>
       </div>
-      <p class="lan-hint lan-hint-top" id="lanHint">네트워크 정보 불러오는 중…</p>
-
       <div class="card server-card">
         <h2 class="server-card-title">서버 상태</h2>
         <p class="server-status" id="serverStatus">상태 확인 중…</p>
-        <div class="lan-mini" id="lanBanner" hidden>
-          <p class="lan-mini-label">다른 기기 접속</p>
-          <p class="lan-mini-url" id="lanUrl"></p>
-          <button type="button" class="btn-secondary btn-sm btn-block" id="btnCopyLan">주소 복사</button>
-        </div>
-        <button type="button" class="btn-primary btn-block" id="btnSyncNetwork">동기화</button>
+        <button type="button" class="btn-primary btn-block" id="btnSyncNetwork">네트워크 동기화</button>
         <p class="hint server-sync-hint">Wi-Fi가 바뀌었을 때 눌러 주세요.</p>
       </div>
 
       <div class="card cf-sync-card" id="cfSyncCard">
         <h2 class="server-card-title">☁️ 클라우드 동기화</h2>
         <p class="cf-sync-status" id="cfSyncStatus">대기 중</p>
-        <button type="button" class="btn-cf-push btn-block" id="btnCfPush" title="앱 → 클라우드 DB">
+        <button type="button" class="btn-cf-push btn-block" id="btnCfPush">
           📤 앱 동기화
         </button>
-        <p class="hint" style="margin:.3rem 0">앱 상태를 DB에 저장합니다.</p>
-        <button type="button" class="btn-cf-pull btn-block" id="btnCfPull" title="클라우드 DB → 앱">
+        <button type="button" class="btn-cf-pull btn-block" id="btnCfPull">
           📥 데이터베이스 동기화
         </button>
-        <p class="hint">DB에서 최신 데이터를 가져옵니다.</p>
         <p class="cf-not-configured hint" id="cfNotConfigured" hidden>
-          ⚠️ Cloudflare Worker URL을 설정 탭에서 입력해 주세요.
+          ⚠️ 설정 탭에서 Worker URL을 입력해 주세요.
         </p>
       </div>
 

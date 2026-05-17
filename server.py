@@ -707,6 +707,23 @@ def cf_status():
     })
 
 
+@app.route("/api/cf/setup-local-auth", methods=["POST"])
+def cf_setup_local_auth():
+    """Website와 동일한 admin/1234 계정을 로컬 Flask 앱에도 설정한다."""
+    body = request.get_json(force=True, silent=True) or {}
+    username = body.get("username", "admin").strip() or "admin"
+    password = body.get("password", "1234") or "1234"
+    cfg = load_config()
+    pw_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
+    cfg["admin_username"] = username
+    cfg["password_hash"] = pw_hash.decode("utf-8")
+    cfg["onboarding_complete"] = True
+    save_config(cfg)
+    global config_data
+    config_data = cfg
+    return jsonify({"ok": True, "username": username})
+
+
 @app.route("/api/cf/config", methods=["GET", "POST"])
 def cf_config():
     cfg = load_config()
