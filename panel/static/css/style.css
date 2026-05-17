@@ -1220,3 +1220,71 @@ body:not(.has-win-chrome) .app-shell {
     line-height: 1.4;
   }
 }
+
+/* ── Cloudflare 동기화 카드 ──────────────────────────────────────────────── */
+.cf-sync-card {
+  margin-top: 10px;
+  background: linear-gradient(135deg, #1a1f3a 0%, #1e2540 100%);
+  border-color: rgba(108, 99, 255, 0.3);
+}
+
+.cf-sync-status {
+  font-size: 11px;
+  color: #8890aa;
+  margin-bottom: 8px;
+  text-align: center;
+  min-height: 16px;
+}
+.cf-sync-status.ok  { color: #4ade80; }
+.cf-sync-status.err { color: #f87171; }
+.cf-sync-status.busy { color: #fbbf24; }
+
+.btn-cf-push {
+  display: block; width: 100%; margin-bottom: 6px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: center;
+}
+.btn-cf-push:hover:not(:disabled) { background: rgba(34, 197, 94, 0.28); }
+.btn-cf-push:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-cf-pull {
+  display: block; width: 100%; margin-bottom: 4px;
+  background: rgba(245, 158, 11, 0.13);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: center;
+}
+.btn-cf-pull:hover:not(:disabled) { background: rgba(245, 158, 11, 0.26); }
+.btn-cf-pull:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Cloudflare settings fields */
+.cf-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cf-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8890aa;
+}
+.cf-save-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #4ade80;
+  min-height: 16px;
+}
+

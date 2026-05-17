@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>음방시스템 — 관리자 대시보드</title>
+  <script src="env.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">🎵</div>
+      <div class="sidebar-name">음방시스템</div>
+      <div class="sidebar-sub">관리자 포털</div>
+    </div>
+
+    <!-- Sync buttons -->
+    <div class="sync-section">
+      <div class="sync-title">동기화</div>
+      <div class="sync-btns">
+        <button class="btn-success btn-sm" id="btnSyncPush" title="로컬 앱 → 데이터베이스">
+          <span>📤</span> 앱 동기화
+        </button>
+        <button class="btn-warning btn-sm" id="btnSyncPull" title="데이터베이스 → 로컬 앱">
+          <span>📥</span> 데이터베이스 동기화
+        </button>
+      </div>
+      <div class="sync-status" id="syncStatus">대기 중</div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="playlist">
+        <span class="nav-icon">🎶</span> 플레이리스트
+      </button>
+      <button class="nav-item" data-page="add">
+        <span class="nav-icon">➕</span> 곡 추가
+      </button>
+      <button class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span> 설정
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">로그인: <strong id="currentUser">-</strong></div>
+      <button class="btn-ghost btn-sm" id="btnLogout" style="margin-top:.5rem;width:100%">
+        🚪 로그아웃
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────────────────── -->
+  <div class="main-area">
+
+    <!-- Playlist page -->
+    <div id="page-playlist" class="page">
+      <div class="topbar">
+        <span class="topbar-title">🎶 플레이리스트 관리</span>
+        <span class="topbar-badge" id="playlistCount">0 곡</span>
+        <button class="btn-secondary btn-sm" id="btnRefreshPlaylist">↻ 새로고침</button>
+        <button class="btn-danger btn-sm" id="btnClearAll">전체 삭제</button>
+      </div>
+      <div class="content">
+        <div class="playlist-toolbar">
+          <input type="search" class="field-input" id="filterInput" placeholder="🔍 제목 검색…" style="max-width:260px" />
+          <div class="playlist-toolbar-right">
+            <span class="hint" id="dragHint">드래그로 순서 변경</span>
+          </div>
+        </div>
+        <ul class="playlist-list" id="playlistList"></ul>
+        <div class="empty-state hidden" id="playlistEmpty">
+          <div class="empty-state-icon">🎵</div>
+          <div class="empty-state-text">플레이리스트가 비어 있습니다</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add song page -->
+    <div id="page-add" class="page hidden">
+      <div class="topbar">
+        <span class="topbar-title">➕ 곡 추가</span>
+      </div>
+      <div class="content">
+        <div class="add-tabs">
+          <button class="add-tab active" data-tab="search">YouTube 검색</button>
+          <button class="add-tab" data-tab="url">YouTube URL</button>
+          <button class="add-tab" data-tab="manual">수동 입력</button>
+        </div>
+
+        <!-- Search tab -->
+        <div id="tab-search" class="card">
+          <div class="card-title">YouTube 검색</div>
+          <div class="search-row">
+            <input type="search" class="field-input" id="searchInput" placeholder="곡명, 아티스트 검색…" />
+            <button class="btn-primary" id="btnSearch">검색</button>
+          </div>
+          <div class="progress-wrap hidden" id="searchProgress">
+            <div class="progress-bar" id="searchBar"></div>
+          </div>
+          <ul class="results-list" id="searchResults"></ul>
+        </div>
+
+        <!-- URL tab -->
+        <div id="tab-url" class="card hidden">
+          <div class="card-title">YouTube URL로 추가</div>
+          <div class="search-row">
+            <input type="url" class="field-input" id="urlInput" placeholder="https://youtu.be/... 또는 watch?v=…" />
+            <button class="btn-primary" id="btnAddUrl">추가</button>
+          </div>
+          <p class="hint" id="urlHint"></p>
+        </div>
+
+        <!-- Manual tab -->
+        <div id="tab-manual" class="card hidden">
+          <div class="card-title">수동으로 곡 정보 입력</div>
+          <div class="settings-grid">
+            <div class="field-group">
+              <label class="field-label">곡 제목 *</label>
+              <input type="text" class="field-input" id="manualTitle" placeholder="예: 아이유 - 좋은 날" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">YouTube Video ID *</label>
+              <input type="text" class="field-input" id="manualId" placeholder="예: dQw4w9WgXcQ" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">썸네일 URL (선택)</label>
+              <input type="url" class="field-input" id="manualThumb" placeholder="https://i.ytimg.com/vi/…/hqdefault.jpg" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">영상 길이 (초, 선택)</label>
+              <input type="number" class="field-input" id="manualDuration" placeholder="예: 213" min="0" />
+            </div>
+            <button class="btn-primary" id="btnAddManual">추가하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings page -->
+    <div id="page-settings" class="page hidden">
+      <div class="topbar">
+        <span class="topbar-title">⚙️ 설정</span>
+        <button class="btn-primary btn-sm" id="btnSaveSettings">저장</button>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="card-title">방송 설정</div>
+          <div class="settings-grid">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">자동 시작</div>
+                <div class="setting-desc">시스템 부팅 시 자동으로 앱 실행</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle">
+                  <input type="checkbox" id="settingAutostart" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">서버 포트</div>
+                <div class="setting-desc">로컬 Flask 서버 포트 (기본 8765)</div>
+              </div>
+              <div class="setting-control">
+                <input type="number" class="field-input" id="settingPort" style="width:100px" min="1024" max="65535" value="8765" />
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">방송 브라우저</div>
+                <div class="setting-desc">방송 화면 표시에 사용할 브라우저</div>
+              </div>
+              <div class="setting-control">
+                <select class="field-input" id="settingBrowser" style="width:130px">
+                  <option value="auto">자동</option>
+                  <option value="chrome">Chrome</option>
+                  <option value="edge">Edge</option>
+                  <option value="firefox">Firefox</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-label">방송 종료 이미지 URL</div>
+                <div class="setting-desc">방송 종료 시 표시할 이미지 경로</div>
+              </div>
+              <div class="setting-control" style="flex:1;max-width:300px">
+                <input type="text" class="field-input" id="settingEndImage" placeholder="이미지 경로 또는 URL" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">데이터 관리</div>
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+            <button class="btn-secondary" id="btnExportJson">📤 JSON 내보내기</button>
+            <button class="btn-secondary" id="btnImportJson">📥 JSON 가져오기</button>
+            <input type="file" id="importFileInput" accept=".json" class="hidden" />
+          </div>
+          <p class="hint" style="margin-top:.6rem">플레이리스트를 JSON 파일로 내보내거나 가져올 수 있습니다.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+</div><!-- /app-layout -->
+
+<!-- ── Toast container ──────────────────────────────────────────────────── -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ── Edit modal ────────────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="editModal">
+  <div class="modal">
+    <div class="modal-title">곡 정보 수정</div>
+    <div class="settings-grid">
+      <div class="field-group">
+        <label class="field-label">곡 제목</label>
+        <input type="text" class="field-input" id="editTitle" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">썸네일 URL</label>
+        <input type="url" class="field-input" id="editThumb" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">영상 길이 (초)</label>
+        <input type="number" class="field-input" id="editDuration" min="0" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnEditCancel">취소</button>
+      <button class="btn-primary" id="btnEditSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm modal ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-title" id="confirmTitle">확인</div>
+    <p id="confirmMessage" style="color:var(--text-2);font-size:.9rem"></p>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnConfirmNo">취소</button>
+      <button class="btn-danger" id="btnConfirmYes">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

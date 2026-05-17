@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 
+import cloudflare_sync
 from app_icon_util import apply_windows_app_identity, ensure_app_icon_ico
 from panel_log import install_crash_logging, panel_log_path, setup_panel_logging
 from webview2_runtime import configure_bundled_webview2
@@ -18,7 +19,8 @@ from broadcast_window import close_broadcast_window
 from config_store import load_config
 from network_utils import panel_urls
 from panel_window import run_panel_native, stop_panel_window
-from server import create_socketio_app, set_broadcast_queue, start_server_thread
+from playlist_store import load_playlist, save_playlist
+from server import broadcast_state, create_socketio_app, set_broadcast_queue, start_server_thread
 from single_instance import ensure_single_instance
 from tray_icon import start_tray_thread, stop_tray
 
@@ -86,6 +88,14 @@ def main() -> None:
     time.sleep(1.0)
 
     threading.Thread(target=_command_worker, args=(port,), daemon=True).start()
+
+    # Auto-pull playlist & settings from Cloudflare D1 on startup
+    if cfg.get("cf_auto_pull_on_start", True) and cloudflare_sync.is_configured(cfg):
+        def _on_pull(pl, settings):
+            broadcast_state.set_playlist(pl)
+            save_playlist(pl)
+            setup_panel_logging().info("CF auto-pull: %d songs loaded from D1", len(pl))
+        cloudflare_sync.pull_background(cfg, _on_pull)
 
     urls = panel_urls(port)
     panel_addr = urls["primary_lan"] or urls["local"]

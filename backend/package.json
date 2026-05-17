@@ -1,0 +1,19 @@
+{
+  "name": "auto-music-player-backend",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker backend for Auto Music Player",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute auto-music-player-db --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute auto-music-player-db --file=schema.sql --remote",
+    "db:studio": "wrangler d1 studio auto-music-player-db"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  }
+}

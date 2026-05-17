@@ -41,6 +41,22 @@
         <p class="hint server-sync-hint">Wi-Fi가 바뀌었을 때 눌러 주세요.</p>
       </div>
 
+      <div class="card cf-sync-card" id="cfSyncCard">
+        <h2 class="server-card-title">☁️ 클라우드 동기화</h2>
+        <p class="cf-sync-status" id="cfSyncStatus">대기 중</p>
+        <button type="button" class="btn-cf-push btn-block" id="btnCfPush" title="앱 → 클라우드 DB">
+          📤 앱 동기화
+        </button>
+        <p class="hint" style="margin:.3rem 0">앱 상태를 DB에 저장합니다.</p>
+        <button type="button" class="btn-cf-pull btn-block" id="btnCfPull" title="클라우드 DB → 앱">
+          📥 데이터베이스 동기화
+        </button>
+        <p class="hint">DB에서 최신 데이터를 가져옵니다.</p>
+        <p class="cf-not-configured hint" id="cfNotConfigured" hidden>
+          ⚠️ Cloudflare Worker URL을 설정 탭에서 입력해 주세요.
+        </p>
+      </div>
+
       <nav class="sidebar-nav" role="tablist">
         <button type="button" class="sidebar-tab active" data-tab="playlist">플레이리스트</button>
         <button type="button" class="sidebar-tab" data-tab="add">곡 추가</button>
@@ -131,6 +147,28 @@
               <span>시작 시 자동 실행</span>
               <input type="checkbox" id="autostartToggle" class="toggle" />
             </label>
+          </div>
+          <div class="card">
+            <h2 class="section-title">☁️ Cloudflare 연동 설정</h2>
+            <p class="hint" style="margin-bottom:.75rem">Cloudflare Worker URL을 입력하면 앱 실행 시 자동으로 DB에서 플레이리스트와 설정을 불러옵니다.</p>
+            <div class="cf-field-row">
+              <label class="cf-label">Worker URL</label>
+              <input type="url" id="cfWorkerUrl" class="input" placeholder="https://auto-music-player-backend.xxx.workers.dev" autocomplete="off" />
+            </div>
+            <div class="cf-field-row">
+              <label class="cf-label">사용자명</label>
+              <input type="text" id="cfUsername" class="input" value="admin" autocomplete="off" />
+            </div>
+            <div class="cf-field-row">
+              <label class="cf-label">비밀번호</label>
+              <input type="password" id="cfPassword" class="input" placeholder="1234" autocomplete="new-password" />
+            </div>
+            <label class="toggle-row" style="margin:.6rem 0">
+              <span>앱 실행 시 자동 DB 동기화</span>
+              <input type="checkbox" id="cfAutoPull" class="toggle" checked />
+            </label>
+            <button type="button" class="btn-primary btn-block" id="btnSaveCfConfig">설정 저장</button>
+            <p class="hint cf-save-hint" id="cfSaveHint"></p>
           </div>
           <p class="settings-credit">Made by 신재원, 정규환</p>
         </section>

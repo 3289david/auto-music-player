@@ -26,6 +26,7 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from werkzeug.utils import secure_filename
 
+import cloudflare_sync
 from config_store import (
     ALLOWED_UPLOAD_EXT,
     ASSETS_DIR,
@@ -692,6 +693,95 @@ def assets_file(filename):
 
     safe = secure_filename(Path(filename).name)
     return send_from_directory(ASSETS_DIR, safe)
+
+
+# --- Cloudflare Sync ---
+
+@app.route("/api/cf/status")
+def cf_status():
+    cfg = load_config()
+    return jsonify({
+        "configured": cloudflare_sync.is_configured(cfg),
+        "worker_url": cfg.get("cloudflare_worker_url", ""),
+        "auto_pull_on_start": cfg.get("cf_auto_pull_on_start", True),
+    })
+
+
+@app.route("/api/cf/config", methods=["GET", "POST"])
+def cf_config():
+    cfg = load_config()
+    if request.method == "GET":
+        return jsonify({
+            "cloudflare_worker_url": cfg.get("cloudflare_worker_url", ""),
+            "cf_username": cfg.get("cf_username", "admin"),
+            "cf_auto_pull_on_start": cfg.get("cf_auto_pull_on_start", True),
+            "cf_auto_push_on_stop": cfg.get("cf_auto_push_on_stop", False),
+        })
+    body = request.get_json(force=True, silent=True) or {}
+    for key in ("cloudflare_worker_url", "cf_username", "cf_password",
+                "cf_auto_pull_on_start", "cf_auto_push_on_stop"):
+        if key in body:
+            cfg[key] = body[key]
+    save_config(cfg)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cf/push", methods=["POST"])
+def cf_push():
+    """앱 동기화: push local playlist + settings → Cloudflare D1."""
+    cfg = load_config()
+    if not cloudflare_sync.is_configured(cfg):
+        return jsonify({"error": "Cloudflare Worker URL이 설정되지 않았습니다"}), 400
+    playlist = broadcast_state.get_playlist_dicts()
+    settings = {
+        "end_broadcast_image": cfg.get("end_broadcast_image", ""),
+        "autostart": str(cfg.get("autostart", False)).lower(),
+        "broadcast_browser": cfg.get("broadcast_browser", "auto"),
+        "port": str(cfg.get("port", 8765)),
+    }
+    ok = cloudflare_sync.push(cfg, playlist, settings)
+    if ok:
+        return jsonify({"ok": True, "songs": len(playlist)})
+    return jsonify({"error": "동기화 실패 — Worker URL 및 인증 정보를 확인해주세요"}), 502
+
+
+@app.route("/api/cf/pull", methods=["POST"])
+def cf_pull():
+    """데이터베이스 동기화: pull playlist + settings from Cloudflare D1 → app."""
+    cfg = load_config()
+    if not cloudflare_sync.is_configured(cfg):
+        return jsonify({"error": "Cloudflare Worker URL이 설정되지 않았습니다"}), 400
+    pl, settings = cloudflare_sync.pull(cfg)
+    if pl is None:
+        return jsonify({"error": "DB에서 데이터를 가져오지 못했습니다"}), 502
+
+    # Apply playlist
+    broadcast_state.set_playlist(pl)
+    save_playlist(pl)
+
+    # Apply settings
+    if settings:
+        changed = False
+        for key in ("end_broadcast_image", "autostart", "broadcast_browser", "port"):
+            if key in settings:
+                val = settings[key]
+                if key == "autostart":
+                    val = val == "true" or val is True
+                if key == "port":
+                    val = int(val) if str(val).isdigit() else cfg.get("port", 8765)
+                cfg[key] = val
+                changed = True
+        if changed:
+            save_config(cfg)
+
+    # Broadcast updated state to all connected panel clients
+    socketio.emit("state_update", broadcast_state.snapshot())
+
+    return jsonify({
+        "ok": True,
+        "songs": len(pl),
+        "settings_applied": bool(settings),
+    })
 
 
 # --- SocketIO ---

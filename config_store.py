@@ -38,6 +38,15 @@ def ensure_dirs() -> None:
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+CF_DEFAULTS: dict[str, Any] = {
+    "cloudflare_worker_url": "",  # e.g. https://auto-music-player-backend.xxx.workers.dev
+    "cf_username": "admin",
+    "cf_password": "1234",
+    "cf_auto_pull_on_start": True,   # pull from DB when app launches
+    "cf_auto_push_on_stop": False,   # push to DB when app closes (opt-in)
+}
+
+
 def load_config() -> dict[str, Any]:
     ensure_dirs()
     if not CONFIG_PATH.exists():
@@ -50,6 +59,7 @@ def load_config() -> dict[str, Any]:
             "autostart": False,
             "broadcast_browser": "auto",
             "onboarding_complete": False,
+            **CF_DEFAULTS,
         }
         save_config(cfg)
         return cfg
@@ -60,6 +70,14 @@ def load_config() -> dict[str, Any]:
         save_config(data)
     if "onboarding_complete" not in data and is_setup_complete(data):
         data["onboarding_complete"] = True
+        save_config(data)
+    # Inject CF defaults for existing configs missing them
+    changed = False
+    for k, v in CF_DEFAULTS.items():
+        if k not in data:
+            data[k] = v
+            changed = True
+    if changed:
         save_config(data)
     return data
 

@@ -861,7 +861,123 @@
     updatePauseButton();
     updateMobileControlBarInset();
     requestAnimationFrame(updateMobileControlBarInset);
+    initCfSync();
   }
 
   document.addEventListener("DOMContentLoaded", init);
+})();
+
+/* ── Cloudflare 동기화 ────────────────────────────────────────────────────── */
+(function () {
+  function setCfStatus(msg, type = '') {
+    const el = document.getElementById('cfSyncStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'cf-sync-status ' + type;
+  }
+
+  async function cfRequest(method, path, body) {
+    const res = await fetch(path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    return res.json();
+  }
+
+  async function loadCfStatus() {
+    try {
+      const data = await cfRequest('GET', '/api/cf/status');
+      const notCfg = document.getElementById('cfNotConfigured');
+      if (notCfg) notCfg.hidden = data.configured;
+      if (!data.configured) {
+        setCfStatus('⚠️ Worker URL 미설정', '');
+      } else {
+        setCfStatus('준비됨', '');
+      }
+
+      // Fill in config form values
+      const cfgData = await cfRequest('GET', '/api/cf/config');
+      const urlEl = document.getElementById('cfWorkerUrl');
+      const userEl = document.getElementById('cfUsername');
+      const pullEl = document.getElementById('cfAutoPull');
+      if (urlEl) urlEl.value = cfgData.cloudflare_worker_url || '';
+      if (userEl) userEl.value = cfgData.cf_username || 'admin';
+      if (pullEl) pullEl.checked = cfgData.cf_auto_pull_on_start !== false;
+    } catch (_) {}
+  }
+
+  window.initCfSync = function () {
+    loadCfStatus();
+
+    // 앱 동기화 button — push local → DB
+    const btnPush = document.getElementById('btnCfPush');
+    if (btnPush) {
+      btnPush.addEventListener('click', async () => {
+        btnPush.disabled = true;
+        setCfStatus('📤 DB에 저장 중…', 'busy');
+        try {
+          const data = await cfRequest('POST', '/api/cf/push');
+          if (data.ok) {
+            setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} 저장됨`, 'ok');
+          } else {
+            setCfStatus('❌ ' + (data.error || '실패'), 'err');
+          }
+        } catch (e) {
+          setCfStatus('❌ 네트워크 오류', 'err');
+        } finally {
+          btnPush.disabled = false;
+        }
+      });
+    }
+
+    // 데이터베이스 동기화 button — pull DB → app
+    const btnPull = document.getElementById('btnCfPull');
+    if (btnPull) {
+      btnPull.addEventListener('click', async () => {
+        btnPull.disabled = true;
+        setCfStatus('📥 DB에서 불러오는 중…', 'busy');
+        try {
+          const data = await cfRequest('POST', '/api/cf/pull');
+          if (data.ok) {
+            setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} (${data.songs}곡)`, 'ok');
+          } else {
+            setCfStatus('❌ ' + (data.error || '실패'), 'err');
+          }
+        } catch (e) {
+          setCfStatus('❌ 네트워크 오류', 'err');
+        } finally {
+          btnPull.disabled = false;
+        }
+      });
+    }
+
+    // Save Cloudflare config
+    const btnSave = document.getElementById('btnSaveCfConfig');
+    if (btnSave) {
+      btnSave.addEventListener('click', async () => {
+        const hint = document.getElementById('cfSaveHint');
+        const body = {
+          cloudflare_worker_url: (document.getElementById('cfWorkerUrl')?.value || '').trim(),
+          cf_username: (document.getElementById('cfUsername')?.value || 'admin').trim(),
+          cf_auto_pull_on_start: document.getElementById('cfAutoPull')?.checked ?? true,
+        };
+        const pw = document.getElementById('cfPassword')?.value;
+        if (pw) body.cf_password = pw;
+        try {
+          const data = await cfRequest('POST', '/api/cf/config', body);
+          if (data.ok) {
+            if (hint) { hint.textContent = '✅ 저장됨'; hint.style.color = '#4ade80'; }
+            loadCfStatus();
+          } else {
+            if (hint) { hint.textContent = '❌ 저장 실패'; hint.style.color = '#f87171'; }
+          }
+        } catch (_) {
+          if (hint) { hint.textContent = '❌ 오류'; hint.style.color = '#f87171'; }
+        }
+        if (hint) setTimeout(() => { hint.textContent = ''; }, 3000);
+      });
+    }
+  };
+
 })();
