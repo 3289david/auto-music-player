@@ -133,13 +133,37 @@ def _apply_win10_fixed_runtime_acl(runtime_dir: Path) -> None:
         pass
 
 
+def _system_webview2_available() -> bool:
+    """Check if system-installed WebView2 (Edge) runtime is present."""
+    import winreg
+    keys = [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
+        (winreg.HKEY_CURRENT_USER,  r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
+    ]
+    for hive, path in keys:
+        try:
+            with winreg.OpenKey(hive, path):
+                return True
+        except OSError:
+            pass
+    return False
+
+
 def configure_bundled_webview2() -> bool:
     folder = find_runtime_folder()
-    if not folder:
-        return False
-    _apply_win10_fixed_runtime_acl(folder)
-    os.environ[_ENV_FOLDER] = str(folder)
-    return True
+    if folder:
+        _apply_win10_fixed_runtime_acl(folder)
+        os.environ[_ENV_FOLDER] = str(folder)
+        return True
+    # In dev mode (not frozen), allow the system WebView2 runtime (Edge) to be used.
+    if not getattr(sys, "frozen", False):
+        if sys.platform == "win32" and _system_webview2_available():
+            return True
+        # Even if registry key isn't found, let it try — WebView2 may still work
+        # (e.g. if Edge is installed but detection fails).
+        return True
+    return False
 
 
 def runtime_status_message() -> str:

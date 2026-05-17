@@ -538,8 +538,13 @@ def run_panel_native(port: int, on_closed: Callable[[], None] | None = None) -> 
         return False
 
     if not configure_bundled_webview2():
-        _show_fatal("WebView2 런타임이 없습니다.\n\n" + runtime_status_message())
-        return False
+        import sys as _sys
+        if getattr(_sys, "frozen", False):
+            # Compiled exe — bundled runtime is required
+            _show_fatal("WebView2 런타임이 없습니다.\n\n" + runtime_status_message())
+            return False
+        # Dev mode — warn and continue (system Edge/WebView2 runtime will be used)
+        log().warning("Bundled WebView2 runtime not found — falling back to system runtime (dev mode)")
 
     panel_url = resolve_panel_url(port)
     if not _wait_for_server(panel_url):
