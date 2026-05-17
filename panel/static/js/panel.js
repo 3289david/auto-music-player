@@ -670,16 +670,7 @@
       showAppAlert(data.error || "초기화 실패");
     });
 
-    $("#btnCopyLan").addEventListener("click", async () => {
-      const url = $("#lanUrl").textContent;
-      if (!url) return;
-      try {
-        await navigator.clipboard.writeText(url);
-        showAppAlert("주소가 복사되었습니다.\n" + url, { title: "복사 완료" });
-      } catch (_) {
-        showAppAlert("아래 주소를 복사해 주세요.\n\n" + url, { title: "주소 복사" });
-      }
-    });
+    // #btnCopyLan 제거됨 (LAN 주소 표시 기능 삭제)
 
     document.querySelectorAll('input[name="broadcastBrowser"]').forEach((radio) => {
       radio.addEventListener("change", async () => {
