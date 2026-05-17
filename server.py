@@ -744,7 +744,9 @@ def local_apply():
     if changed:
         save_config(cfg)
 
-    socketio.emit("state_update", broadcast_state.snapshot())
+    # 패널 UI 업데이트 — playlist_update 이벤트로 플레이리스트 갱신
+    _emit_playlist()
+    _emit_now_playing()
     return jsonify({"ok": True, "songs": len(pl)})
 
 
@@ -825,8 +827,9 @@ def cf_pull():
         if changed:
             save_config(cfg)
 
-    # Broadcast updated state to all connected panel clients
-    socketio.emit("state_update", broadcast_state.snapshot())
+    # 패널 UI 업데이트
+    _emit_playlist()
+    _emit_now_playing()
 
     return jsonify({
         "ok": True,
