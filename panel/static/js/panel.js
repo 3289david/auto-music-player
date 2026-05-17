@@ -654,27 +654,22 @@
 
     $("#btnResetAccount").addEventListener("click", async () => {
       const ok = await showAppConfirm(
-        "관리자 계정을 초기화할까요?\n다시 최초 설정 화면으로 이동합니다.",
-        { title: "계정 초기화", okText: "초기화", cancelText: "취소" }
+        "로컬 계정을 admin / 1234 로 초기화할까요?",
+        { title: "DB 계정 초기화", okText: "초기화", cancelText: "취소" }
       );
       if (!ok) return;
       const res = await fetch("/api/settings/reset-account", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken,
-        },
-        body: JSON.stringify({
-          password: $("#resetAccountPassword").value,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (res.ok) {
-        window.location.href = "/setup";
+        window.location.href = "/login";
         return;
       }
-      showAppAlert(data.error || "계정 초기화 실패");
+      showAppAlert(data.error || "초기화 실패");
     });
 
     $("#btnCopyLan").addEventListener("click", async () => {

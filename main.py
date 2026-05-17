@@ -20,7 +20,7 @@ from config_store import load_config
 from network_utils import panel_urls
 from panel_window import run_panel_native, stop_panel_window
 from playlist_store import load_playlist, save_playlist
-from server import broadcast_state, create_socketio_app, set_broadcast_queue, start_server_thread
+from server import auto_setup_admin, broadcast_state, create_socketio_app, set_broadcast_queue, start_server_thread
 from single_instance import ensure_single_instance
 from tray_icon import start_tray_thread, stop_tray
 
@@ -77,6 +77,9 @@ def main() -> None:
     apply_windows_app_identity()
     ensure_app_icon_ico()
     configure_bundled_webview2()
+
+    # Auto-create admin/1234 account — skip onboarding entirely
+    auto_setup_admin()
 
     cfg = load_config()
     port = int(cfg.get("port", 8765))

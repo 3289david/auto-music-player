@@ -229,6 +229,17 @@ def _fetch_youtube_duration(video_id: str) -> float:
         return 0.0
 
 
+def auto_setup_admin() -> None:
+    """앱 시작 시 admin/1234 계정이 없으면 자동 생성 (온보딩 스킵)."""
+    cfg = load_config()
+    if not is_setup_complete(cfg):
+        pw_hash = bcrypt.hashpw(b"1234", bcrypt.gensalt(rounds=12))
+        cfg["admin_username"] = "admin"
+        cfg["password_hash"] = pw_hash.decode("utf-8")
+        cfg["onboarding_complete"] = True
+        save_config(cfg)
+
+
 def init_app(cfg: dict[str, Any]) -> None:
     global config_data
     config_data = cfg
@@ -480,25 +491,19 @@ def api_change_password():
 
 @app.route("/api/settings/reset-account", methods=["POST"])
 def api_reset_account():
-    """관리자 계정 초기화 → 최초 설정 화면으로."""
-    if not current_user.is_authenticated:
-        return jsonify({"error": "unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    current_pw = (data.get("password") or "").encode("utf-8")
+    """DB 계정 초기화 — 로컬 계정을 admin/1234로 리셋하고 재로그인."""
     cfg = load_config()
-    if not cfg.get("password_hash"):
-        return jsonify({"error": "설정된 계정이 없습니다"}), 400
-    if not bcrypt.checkpw(current_pw, cfg["password_hash"].encode("utf-8")):
-        return jsonify({"error": "비밀번호가 올바르지 않습니다"}), 400
-    cfg["admin_username"] = ""
-    cfg["password_hash"] = ""
-    cfg["onboarding_complete"] = False
+    pw_hash = bcrypt.hashpw(b"1234", bcrypt.gensalt(rounds=12))
+    cfg["admin_username"] = "admin"
+    cfg["password_hash"] = pw_hash.decode("utf-8")
+    cfg["onboarding_complete"] = True
     save_config(cfg)
+    global config_data
+    config_data = cfg
     _disconnect_panel_clients()
-    _stop_broadcast_playback()
     logout_user()
     _emit_panel_session_status()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "redirect": "/login"})
 
 
 @app.route("/api/youtube/from-url", methods=["POST"])
@@ -697,6 +702,7 @@ def assets_file(filename):
 
 # --- Cloudflare Sync ---
 
+@csrf.exempt
 @app.route("/api/cf/status")
 def cf_status():
     cfg = load_config()
@@ -707,6 +713,7 @@ def cf_status():
     })
 
 
+@csrf.exempt
 @app.route("/api/cf/setup-local-auth", methods=["POST"])
 def cf_setup_local_auth():
     """Website와 동일한 admin/1234 계정을 로컬 Flask 앱에도 설정한다."""
@@ -724,6 +731,7 @@ def cf_setup_local_auth():
     return jsonify({"ok": True, "username": username})
 
 
+@csrf.exempt
 @app.route("/api/cf/config", methods=["GET", "POST"])
 def cf_config():
     cfg = load_config()
@@ -743,6 +751,7 @@ def cf_config():
     return jsonify({"ok": True})
 
 
+@csrf.exempt
 @app.route("/api/cf/push", methods=["POST"])
 def cf_push():
     """앱 동기화: push local playlist + settings → Cloudflare D1."""
@@ -762,6 +771,7 @@ def cf_push():
     return jsonify({"error": "동기화 실패 — Worker URL 및 인증 정보를 확인해주세요"}), 502
 
 
+@csrf.exempt
 @app.route("/api/cf/pull", methods=["POST"])
 def cf_pull():
     """데이터베이스 동기화: pull playlist + settings from Cloudflare D1 → app."""

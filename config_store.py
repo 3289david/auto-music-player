@@ -39,7 +39,7 @@ def ensure_dirs() -> None:
 
 
 CF_DEFAULTS: dict[str, Any] = {
-    "cloudflare_worker_url": "",  # e.g. https://auto-music-player-backend.xxx.workers.dev
+    "cloudflare_worker_url": "https://auto-music-player-backend.rukkit.workers.dev",
     "cf_username": "admin",
     "cf_password": "1234",
     "cf_auto_pull_on_start": True,   # pull from DB when app launches
