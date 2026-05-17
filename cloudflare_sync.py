@@ -8,9 +8,10 @@ from typing import Any
 import urllib.request
 import urllib.error
 
+import logging
 from panel_log import get_logger
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 _token_cache: dict[str, str] = {}
 _token_lock = threading.Lock()
