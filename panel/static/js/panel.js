@@ -838,8 +838,11 @@
   document.addEventListener("DOMContentLoaded", init);
 })();
 
-/* ── Cloudflare 동기화 ────────────────────────────────────────────────────── */
+/* ── Cloudflare 동기화 (브라우저 → Worker 직접 호출) ───────────────────── */
 (function () {
+  const WORKER = 'https://auto-music-player-backend.rukkit.workers.dev';
+  let _jwt = null;
+
   function setCfStatus(msg, type = '') {
     const el = document.getElementById('cfSyncStatus');
     if (!el) return;
@@ -847,85 +850,133 @@
     el.className = 'cf-sync-status ' + type;
   }
 
-  async function cfRequest(method, path, body) {
+  // Worker에 로그인해서 JWT 획득
+  async function cfLogin() {
+    const res = await fetch(`${WORKER}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password: '1234' }),
+    });
+    const data = await res.json();
+    if (!data.token) throw new Error('Worker 로그인 실패: ' + (data.error || `HTTP ${res.status}`));
+    _jwt = data.token;
+  }
+
+  // Worker API 호출 (자동 로그인 + 401 시 재시도)
+  async function workerFetch(method, path, body, retry = true) {
+    if (!_jwt) await cfLogin();
+    const res = await fetch(`${WORKER}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${_jwt}`,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    if (res.status === 401 && retry) {
+      _jwt = null;
+      return workerFetch(method, path, body, false);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Worker HTTP ${res.status}`);
+    return data;
+  }
+
+  // 로컬 Flask 호출
+  async function localFetch(method, path, body) {
     const res = await fetch(path, {
       method,
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-    }
-    return res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `로컬 HTTP ${res.status}`);
+    return data;
   }
 
-  async function loadCfStatus() {
+  // 📤 앱 동기화: 로컬 상태 읽기 → Worker에 푸시
+  async function doPush() {
+    const local = await localFetch('GET', '/api/local/state');
+    await workerFetch('POST', '/api/sync/push', {
+      playlist: local.playlist,
+      settings: local.settings,
+    });
+    return local.playlist.length;
+  }
+
+  // 📥 데이터베이스 동기화: Worker에서 당기기 → 로컬에 적용
+  async function doPull() {
+    const remote = await workerFetch('GET', '/api/sync/pull');
+    const result = await localFetch('POST', '/api/local/apply', {
+      playlist: remote.playlist || [],
+      settings: remote.settings || {},
+    });
+    return result.songs ?? 0;
+  }
+
+  async function loadCfConfig() {
     try {
-      const cfgData = await cfRequest('GET', '/api/cf/config');
+      const cfgData = await localFetch('GET', '/api/cf/config');
       const pullEl = document.getElementById('cfAutoPull');
       if (pullEl) pullEl.checked = cfgData.cf_auto_pull_on_start !== false;
       setCfStatus('준비됨', '');
-      const notCfg = document.getElementById('cfNotConfigured');
-      if (notCfg) notCfg.hidden = true;
-    } catch (e) {
-      setCfStatus('연결 오류', 'err');
-      console.error('CF status load failed:', e);
+    } catch (_) {
+      setCfStatus('준비됨', '');  // 연결 실패해도 버튼은 활성화
     }
   }
 
   window.initCfSync = function () {
-    loadCfStatus();
+    loadCfConfig();
 
-    // 📤 앱 동기화 — push local → DB
+    // 📤 앱 동기화
     const btnPush = document.getElementById('btnCfPush');
     if (btnPush) {
       btnPush.addEventListener('click', async () => {
         btnPush.disabled = true;
         setCfStatus('📤 DB에 저장 중…', 'busy');
         try {
-          const data = await cfRequest('POST', '/api/cf/push');
-          setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} 저장됨 (${data.songs ?? 0}곡)`, 'ok');
+          const count = await doPush();
+          setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} 저장됨 (${count}곡)`, 'ok');
         } catch (e) {
           setCfStatus('❌ ' + e.message, 'err');
-          console.error('CF push error:', e);
+          console.error('[CF push]', e);
         } finally {
           btnPush.disabled = false;
         }
       });
     }
 
-    // 📥 데이터베이스 동기화 — pull DB → app
+    // 📥 데이터베이스 동기화
     const btnPull = document.getElementById('btnCfPull');
     if (btnPull) {
       btnPull.addEventListener('click', async () => {
         btnPull.disabled = true;
         setCfStatus('📥 DB에서 불러오는 중…', 'busy');
         try {
-          const data = await cfRequest('POST', '/api/cf/pull');
-          setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} (${data.songs ?? 0}곡)`, 'ok');
+          const count = await doPull();
+          setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} (${count}곡)`, 'ok');
         } catch (e) {
           setCfStatus('❌ ' + e.message, 'err');
-          console.error('CF pull error:', e);
+          console.error('[CF pull]', e);
         } finally {
           btnPull.disabled = false;
         }
       });
     }
 
-    // 설정 저장 — 자동 동기화 토글만 저장
+    // 설정 저장 (자동 동기화 토글)
     const btnSave = document.getElementById('btnSaveCfConfig');
     if (btnSave) {
       btnSave.addEventListener('click', async () => {
         const hint = document.getElementById('cfSaveHint');
         try {
-          await cfRequest('POST', '/api/cf/config', {
+          await localFetch('POST', '/api/cf/config', {
             cf_auto_pull_on_start: document.getElementById('cfAutoPull')?.checked ?? true,
           });
           if (hint) { hint.textContent = '✅ 저장됨'; hint.style.color = '#22a35a'; }
         } catch (e) {
-          if (hint) { hint.textContent = '❌ 저장 실패: ' + e.message; hint.style.color = '#c0392b'; }
+          if (hint) { hint.textContent = '❌ ' + e.message; hint.style.color = '#c0392b'; }
         }
         if (hint) setTimeout(() => { hint.textContent = ''; }, 3000);
       });

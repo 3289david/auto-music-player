@@ -700,7 +700,53 @@ def assets_file(filename):
     return send_from_directory(ASSETS_DIR, safe)
 
 
-# --- Cloudflare Sync ---
+# --- Cloudflare Sync (browser-direct approach) ---
+
+@csrf.exempt
+@app.route("/api/local/state")
+def local_state():
+    """브라우저 JS가 로컬 플레이리스트·설정을 Worker로 푸시하기 위해 읽는 엔드포인트."""
+    cfg = load_config()
+    playlist = broadcast_state.get_playlist_dicts()
+    settings = {
+        "end_broadcast_image": cfg.get("end_broadcast_image", ""),
+        "autostart": str(cfg.get("autostart", False)).lower(),
+        "broadcast_browser": cfg.get("broadcast_browser", "auto"),
+        "port": str(cfg.get("port", 8765)),
+    }
+    return jsonify({"playlist": playlist, "settings": settings})
+
+
+@csrf.exempt
+@app.route("/api/local/apply", methods=["POST"])
+def local_apply():
+    """브라우저 JS가 Worker에서 당겨온 플레이리스트·설정을 앱에 적용."""
+    data = request.get_json(force=True, silent=True) or {}
+    pl = data.get("playlist") or []
+    settings = data.get("settings") or {}
+
+    # Apply playlist
+    broadcast_state.set_playlist(pl)
+    save_playlist(pl)
+
+    # Apply settings
+    cfg = load_config()
+    changed = False
+    for key in ("end_broadcast_image", "autostart", "broadcast_browser", "port"):
+        if key in settings:
+            val = settings[key]
+            if key == "autostart":
+                val = val in ("true", True)
+            elif key == "port":
+                val = int(val) if str(val).isdigit() else cfg.get("port", 8765)
+            cfg[key] = val
+            changed = True
+    if changed:
+        save_config(cfg)
+
+    socketio.emit("state_update", broadcast_state.snapshot())
+    return jsonify({"ok": True, "songs": len(pl)})
+
 
 @csrf.exempt
 @app.route("/api/cf/status")
