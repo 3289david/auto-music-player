@@ -1,6 +1,2 @@
-// Auto-generated — edit this file to point to your Worker URL.
-// For production, replace with your deployed Cloudflare Worker URL.
-window.__API_BASE__ = 'https://auto-music-player-backend.YOUR_SUBDOMAIN.workers.dev';
-
-// For local development:
-// window.__API_BASE__ = 'http://localhost:8787';
+window.__API_BASE__      = 'https://auto-music-player-backend.rukkit.workers.dev';
+window.__YT_API_KEY__   = 'AIzaSyAyVsBQtYsoOF8kIX21epl5c1XKzt8e2A4';

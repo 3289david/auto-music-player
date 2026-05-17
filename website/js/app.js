@@ -276,41 +276,87 @@ async function searchYouTube() {
   const bar = document.getElementById('searchBar');
   const results = document.getElementById('searchResults');
   progress.classList.remove('hidden');
-  bar.style.width = '30%';
+  bar.style.width = '20%';
   results.innerHTML = '<li style="color:var(--text-3);padding:.5rem">검색 중…</li>';
 
-  try {
-    // We call a YouTube search proxy via the Worker (if configured)
-    // Fallback: search using YouTube oEmbed / data API
-    bar.style.width = '70%';
-    const res = await apiFetch(`/api/youtube/search?q=${encodeURIComponent(q)}&limit=8`);
-    bar.style.width = '100%';
+  const apiKey = window.__YT_API_KEY__;
+  if (!apiKey) {
+    results.innerHTML = `<li class="hint" style="padding:.5rem">YouTube API 키가 설정되지 않았습니다.</li>`;
+    setTimeout(() => progress.classList.add('hidden'), 400);
+    return;
+  }
 
-    if (!res.ok) {
-      results.innerHTML = `<li class="hint" style="padding:.5rem">YouTube 검색 API가 설정되지 않았습니다. URL 탭 또는 수동 입력을 이용해 주세요.</li>`;
+  try {
+    // Step 1: Search for videos
+    bar.style.width = '40%';
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(q)}&maxResults=8&key=${apiKey}`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+
+    if (!searchRes.ok) {
+      const msg = searchData?.error?.message || '검색 실패';
+      results.innerHTML = `<li class="hint" style="padding:.5rem">YouTube 오류: ${escHtml(msg)}</li>`;
       return;
     }
-    const data = await res.json();
-    renderSearchResults(data.items || []);
-  } catch {
-    results.innerHTML = `<li class="hint" style="padding:.5rem">YouTube 검색 API가 설정되지 않았습니다. URL 탭 또는 수동 입력을 이용해 주세요.</li>`;
+
+    const searchItems = searchData.items || [];
+    if (!searchItems.length) {
+      results.innerHTML = '<li class="hint" style="padding:.5rem">검색 결과 없음</li>';
+      return;
+    }
+
+    // Step 2: Fetch video durations
+    bar.style.width = '70%';
+    const videoIds = searchItems.map(it => it.id.videoId).join(',');
+    const detailUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${apiKey}`;
+    const detailRes = await fetch(detailUrl);
+    const detailData = await detailRes.json();
+
+    // Build duration map { videoId -> seconds }
+    const durationMap = {};
+    for (const v of (detailData.items || [])) {
+      durationMap[v.id] = parseISO8601Duration(v.contentDetails?.duration || '');
+    }
+
+    bar.style.width = '100%';
+
+    // Map to uniform item shape
+    const items = searchItems.map(it => ({
+      id: it.id.videoId,
+      title: it.snippet.title,
+      thumbnail: it.snippet.thumbnails?.high?.url || it.snippet.thumbnails?.default?.url || '',
+      channel: it.snippet.channelTitle || '',
+      duration: durationMap[it.id.videoId] || 0,
+    }));
+
+    renderSearchResults(items);
+  } catch (err) {
+    results.innerHTML = `<li class="hint" style="padding:.5rem">검색 중 오류가 발생했습니다.</li>`;
+    console.error('YouTube search error:', err);
   } finally {
     setTimeout(() => progress.classList.add('hidden'), 400);
     bar.style.width = '0';
   }
 }
 
+/** Parse ISO 8601 duration (PT#H#M#S) → total seconds */
+function parseISO8601Duration(iso) {
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseInt(m[3] || 0);
+}
+
 function renderSearchResults(items) {
   const results = document.getElementById('searchResults');
   if (!items.length) { results.innerHTML = '<li class="hint" style="padding:.5rem">검색 결과 없음</li>'; return; }
-  results.innerHTML = items.map((item, i) => `
+  results.innerHTML = items.map(item => `
     <li class="result-item">
-      ${item.thumbnail ? `<img class="song-thumb" src="${item.thumbnail}" alt="" loading="lazy">` : '<div class="song-thumb-placeholder">🎵</div>'}
+      ${item.thumbnail ? `<img class="song-thumb" src="${escHtml(item.thumbnail)}" alt="" loading="lazy">` : '<div class="song-thumb-placeholder">🎵</div>'}
       <div class="song-info">
         <div class="song-title">${escHtml(item.title)}</div>
-        <div class="song-meta"><span class="song-type youtube">YT</span> ${escHtml(item.id)}${item.duration ? ` · ${fmtDuration(item.duration)}` : ''}</div>
+        <div class="song-meta"><span class="song-type youtube">YT</span> ${escHtml(item.channel)}${item.duration ? ` · ${fmtDuration(item.duration)}` : ''}</div>
       </div>
-      <button class="btn-primary btn-sm" onclick="addYouTubeSong('${escHtml(item.id)}','${escHtml(item.title).replace(/'/g,"\\'")}','${escHtml(item.thumbnail || '')}',${item.duration||0})">추가</button>
+      <button class="btn-primary btn-sm" onclick="addYouTubeSong('${escHtml(item.id)}','${item.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${escHtml(item.thumbnail || '')}',${item.duration||0})">추가</button>
     </li>`).join('');
 }
 
