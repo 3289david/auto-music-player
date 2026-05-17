@@ -544,8 +544,6 @@
       openDisplayModal();
     });
 
-    $("#btnSyncNetwork").addEventListener("click", syncNetwork);
-
     $("#btnDisplayCancel").addEventListener("click", () => {
       $("#displayModal").hidden = true;
     });
@@ -761,21 +759,8 @@
     }
   }
 
-  function showLanUrls(data) {
-    const lanList = data.panel_lan || data.lan || [];
-    const primary = data.panel_primary_lan || data.primary_lan || lanList[0] || "";
-    const hint = $("#lanHint");
-    const banner = $("#lanBanner");
-    const urlEl = $("#lanUrl");
-
-    if (primary) {
-      hint.textContent = "다른 기기: " + primary.replace(/^https?:\/\//, "");
-      urlEl.textContent = primary;
-      banner.hidden = false;
-    } else {
-      hint.textContent = "LAN 주소 없음 — PC와 폰이 같은 Wi-Fi인지 확인";
-      banner.hidden = true;
-    }
+  function showLanUrls(_data) {
+    // LAN 주소 표시 UI 제거됨 — 아무것도 하지 않음
   }
 
   function updateBrowserHint(available) {
@@ -874,38 +859,35 @@
   async function cfRequest(method, path, body) {
     const res = await fetch(path, {
       method,
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
     return res.json();
   }
 
   async function loadCfStatus() {
     try {
-      const data = await cfRequest('GET', '/api/cf/status');
-      const notCfg = document.getElementById('cfNotConfigured');
-      if (notCfg) notCfg.hidden = data.configured;
-      if (!data.configured) {
-        setCfStatus('⚠️ Worker URL 미설정', '');
-      } else {
-        setCfStatus('준비됨', '');
-      }
-
-      // Fill in config form values
       const cfgData = await cfRequest('GET', '/api/cf/config');
-      const urlEl = document.getElementById('cfWorkerUrl');
-      const userEl = document.getElementById('cfUsername');
       const pullEl = document.getElementById('cfAutoPull');
-      if (urlEl) urlEl.value = cfgData.cloudflare_worker_url || '';
-      if (userEl) userEl.value = cfgData.cf_username || 'admin';
       if (pullEl) pullEl.checked = cfgData.cf_auto_pull_on_start !== false;
-    } catch (_) {}
+      setCfStatus('준비됨', '');
+      const notCfg = document.getElementById('cfNotConfigured');
+      if (notCfg) notCfg.hidden = true;
+    } catch (e) {
+      setCfStatus('연결 오류', 'err');
+      console.error('CF status load failed:', e);
+    }
   }
 
   window.initCfSync = function () {
     loadCfStatus();
 
-    // 앱 동기화 button — push local → DB
+    // 📤 앱 동기화 — push local → DB
     const btnPush = document.getElementById('btnCfPush');
     if (btnPush) {
       btnPush.addEventListener('click', async () => {
@@ -913,20 +895,17 @@
         setCfStatus('📤 DB에 저장 중…', 'busy');
         try {
           const data = await cfRequest('POST', '/api/cf/push');
-          if (data.ok) {
-            setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} 저장됨`, 'ok');
-          } else {
-            setCfStatus('❌ ' + (data.error || '실패'), 'err');
-          }
+          setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} 저장됨 (${data.songs ?? 0}곡)`, 'ok');
         } catch (e) {
-          setCfStatus('❌ 네트워크 오류', 'err');
+          setCfStatus('❌ ' + e.message, 'err');
+          console.error('CF push error:', e);
         } finally {
           btnPush.disabled = false;
         }
       });
     }
 
-    // 데이터베이스 동기화 button — pull DB → app
+    // 📥 데이터베이스 동기화 — pull DB → app
     const btnPull = document.getElementById('btnCfPull');
     if (btnPull) {
       btnPull.addEventListener('click', async () => {
@@ -934,47 +913,30 @@
         setCfStatus('📥 DB에서 불러오는 중…', 'busy');
         try {
           const data = await cfRequest('POST', '/api/cf/pull');
-          if (data.ok) {
-            setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} (${data.songs}곡)`, 'ok');
-          } else {
-            setCfStatus('❌ ' + (data.error || '실패'), 'err');
-          }
+          setCfStatus(`✅ ${new Date().toLocaleTimeString('ko-KR')} (${data.songs ?? 0}곡)`, 'ok');
         } catch (e) {
-          setCfStatus('❌ 네트워크 오류', 'err');
+          setCfStatus('❌ ' + e.message, 'err');
+          console.error('CF pull error:', e);
         } finally {
           btnPull.disabled = false;
         }
       });
     }
 
-    // Save Cloudflare config
+    // 설정 저장 — 자동 동기화 토글만 저장
     const btnSave = document.getElementById('btnSaveCfConfig');
     if (btnSave) {
       btnSave.addEventListener('click', async () => {
         const hint = document.getElementById('cfSaveHint');
-        const workerUrl = (document.getElementById('cfWorkerUrl')?.value || '').trim();
-        const cfUser    = (document.getElementById('cfUsername')?.value || 'admin').trim();
-        const cfPw      = document.getElementById('cfPassword')?.value || '1234';
-        const body = {
-          cloudflare_worker_url: workerUrl,
-          cf_username: cfUser,
-          cf_password: cfPw,
-          cf_auto_pull_on_start: document.getElementById('cfAutoPull')?.checked ?? true,
-        };
         try {
-          const data = await cfRequest('POST', '/api/cf/config', body);
-          if (data.ok) {
-            // Also set local app credentials to match website (admin/1234)
-            await cfRequest('POST', '/api/cf/setup-local-auth', { username: cfUser, password: cfPw });
-            if (hint) { hint.textContent = '✅ 저장 완료 — 앱 로그인도 동기화됨'; hint.style.color = '#22a35a'; }
-            loadCfStatus();
-          } else {
-            if (hint) { hint.textContent = '❌ 저장 실패'; hint.style.color = '#c0392b'; }
-          }
-        } catch (_) {
-          if (hint) { hint.textContent = '❌ 오류 발생'; hint.style.color = '#c0392b'; }
+          await cfRequest('POST', '/api/cf/config', {
+            cf_auto_pull_on_start: document.getElementById('cfAutoPull')?.checked ?? true,
+          });
+          if (hint) { hint.textContent = '✅ 저장됨'; hint.style.color = '#22a35a'; }
+        } catch (e) {
+          if (hint) { hint.textContent = '❌ 저장 실패: ' + e.message; hint.style.color = '#c0392b'; }
         }
-        if (hint) setTimeout(() => { hint.textContent = ''; }, 4000);
+        if (hint) setTimeout(() => { hint.textContent = ''; }, 3000);
       });
     }
   };

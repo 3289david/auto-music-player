@@ -707,46 +707,24 @@ def assets_file(filename):
 def cf_status():
     cfg = load_config()
     return jsonify({
-        "configured": cloudflare_sync.is_configured(cfg),
-        "worker_url": cfg.get("cloudflare_worker_url", ""),
+        "configured": True,   # Worker URL은 하드코딩 — 항상 True
+        "worker_url": cloudflare_sync.WORKER_URL,
         "auto_pull_on_start": cfg.get("cf_auto_pull_on_start", True),
     })
 
 
 @csrf.exempt
-@app.route("/api/cf/setup-local-auth", methods=["POST"])
-def cf_setup_local_auth():
-    """Website와 동일한 admin/1234 계정을 로컬 Flask 앱에도 설정한다."""
-    body = request.get_json(force=True, silent=True) or {}
-    username = body.get("username", "admin").strip() or "admin"
-    password = body.get("password", "1234") or "1234"
-    cfg = load_config()
-    pw_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
-    cfg["admin_username"] = username
-    cfg["password_hash"] = pw_hash.decode("utf-8")
-    cfg["onboarding_complete"] = True
-    save_config(cfg)
-    global config_data
-    config_data = cfg
-    return jsonify({"ok": True, "username": username})
-
-
-@csrf.exempt
 @app.route("/api/cf/config", methods=["GET", "POST"])
 def cf_config():
+    """자동 동기화 토글만 저장 (Worker URL/계정은 하드코딩)."""
     cfg = load_config()
     if request.method == "GET":
         return jsonify({
-            "cloudflare_worker_url": cfg.get("cloudflare_worker_url", ""),
-            "cf_username": cfg.get("cf_username", "admin"),
             "cf_auto_pull_on_start": cfg.get("cf_auto_pull_on_start", True),
-            "cf_auto_push_on_stop": cfg.get("cf_auto_push_on_stop", False),
         })
     body = request.get_json(force=True, silent=True) or {}
-    for key in ("cloudflare_worker_url", "cf_username", "cf_password",
-                "cf_auto_pull_on_start", "cf_auto_push_on_stop"):
-        if key in body:
-            cfg[key] = body[key]
+    if "cf_auto_pull_on_start" in body:
+        cfg["cf_auto_pull_on_start"] = bool(body["cf_auto_pull_on_start"])
     save_config(cfg)
     return jsonify({"ok": True})
 

@@ -7,32 +7,34 @@ from typing import Any
 
 import urllib.request
 import urllib.error
-
 import logging
-from panel_log import get_logger
 
 log = logging.getLogger(__name__)
+
+# ── 하드코딩된 Worker 정보 (설정 불필요) ─────────────────────────────────────
+WORKER_URL  = "https://auto-music-player-backend.rukkit.workers.dev"
+CF_USERNAME = "admin"
+CF_PASSWORD = "1234"
 
 _token_cache: dict[str, str] = {}
 _token_lock = threading.Lock()
 
 
-def _api_url(cfg: dict[str, Any], path: str) -> str:
-    base = cfg.get("cloudflare_worker_url", "").rstrip("/")
-    return f"{base}{path}"
+def _api_url(path: str) -> str:
+    return f"{WORKER_URL}{path}"
 
 
-def _get_token(cfg: dict[str, Any]) -> str | None:
+def _get_token() -> str | None:
     """Login and cache a JWT token."""
     with _token_lock:
         cached = _token_cache.get("token")
         if cached:
             return cached
 
-    url = _api_url(cfg, "/api/auth/login")
+    url = _api_url("/api/auth/login")
     payload = json.dumps({
-        "username": cfg.get("cf_username", "admin"),
-        "password": cfg.get("cf_password", "1234"),
+        "username": CF_USERNAME,
+        "password": CF_PASSWORD,
     }).encode()
     try:
         req = urllib.request.Request(
@@ -46,7 +48,9 @@ def _get_token(cfg: dict[str, Any]) -> str | None:
         if token:
             with _token_lock:
                 _token_cache["token"] = token
+            log.info("CF auth OK — token acquired")
             return token
+        log.warning("CF auth: no token in response: %s", data)
     except Exception as e:
         log.warning("CF auth failed: %s", e)
     return None
@@ -57,11 +61,12 @@ def _clear_token() -> None:
         _token_cache.clear()
 
 
-def _request(cfg: dict[str, Any], method: str, path: str, body: Any = None) -> dict[str, Any] | None:
-    token = _get_token(cfg)
+def _request(method: str, path: str, body: Any = None) -> dict[str, Any] | None:
+    token = _get_token()
     if not token:
+        log.warning("CF request skipped — no token")
         return None
-    url = _api_url(cfg, path)
+    url = _api_url(path)
     payload = json.dumps(body).encode() if body is not None else None
     headers: dict[str, str] = {
         "Authorization": f"Bearer {token}",
@@ -70,29 +75,29 @@ def _request(cfg: dict[str, Any], method: str, path: str, body: Any = None) -> d
     try:
         req = urllib.request.Request(url, data=payload, headers=headers, method=method)
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read())
+            result = json.loads(resp.read())
+            log.info("CF %s %s → OK", method, path)
+            return result
     except urllib.error.HTTPError as e:
+        body_text = e.read().decode(errors="replace") if hasattr(e, "read") else ""
+        log.warning("CF request %s %s → HTTP %s: %s", method, path, e.code, body_text)
         if e.code == 401:
             _clear_token()
-        log.warning("CF request %s %s → HTTP %s", method, path, e.code)
     except Exception as e:
         log.warning("CF request %s %s failed: %s", method, path, e)
     return None
 
 
-def is_configured(cfg: dict[str, Any]) -> bool:
-    """Returns True only if the Worker URL is set."""
-    return bool(cfg.get("cloudflare_worker_url", "").strip())
+def is_configured(_cfg: Any = None) -> bool:
+    """Always configured — Worker URL is hardcoded."""
+    return True
 
 
 # ─── Public API ──────────────────────────────────────────────────────────────
 
 def push(cfg: dict[str, Any], playlist: list[dict], settings: dict) -> bool:
     """Push local playlist + settings to Cloudflare D1."""
-    if not is_configured(cfg):
-        log.info("CF sync not configured — skipping push")
-        return False
-    result = _request(cfg, "POST", "/api/sync/push", {
+    result = _request("POST", "/api/sync/push", {
         "playlist": playlist,
         "settings": settings,
     })
@@ -100,16 +105,13 @@ def push(cfg: dict[str, Any], playlist: list[dict], settings: dict) -> bool:
     if ok:
         log.info("CF push OK — %s songs, pushed_at=%s", len(playlist), result.get("pushed_at"))
     else:
-        log.warning("CF push failed or returned unexpected result: %s", result)
+        log.warning("CF push failed: %s", result)
     return ok
 
 
 def pull(cfg: dict[str, Any]) -> tuple[list[dict], dict] | tuple[None, None]:
     """Pull playlist + settings from Cloudflare D1. Returns (playlist, settings) or (None, None)."""
-    if not is_configured(cfg):
-        log.info("CF sync not configured — skipping pull")
-        return None, None
-    result = _request(cfg, "GET", "/api/sync/pull")
+    result = _request("GET", "/api/sync/pull")
     if result is None:
         return None, None
     pl = result.get("playlist") or []
