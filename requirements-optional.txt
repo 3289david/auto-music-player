@@ -1,0 +1,4 @@
+# 선택: pywebview (Python 3.11~3.12 전용, 3.14에서는 pythonnet 빌드 실패)
+# Python 3.14 사용자는 설치하지 마세요 — tkinterweb만 사용합니다.
+-r requirements.txt
+pywebview>=5.0.0; python_version < "3.14"

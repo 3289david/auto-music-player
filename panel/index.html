@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3세대 음방시스템 — 컨트롤 패널</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+  <header class="win-chrome" id="winChrome">
+    <div class="win-chrome-drag">
+      <span class="win-chrome-title">3세대 음방시스템</span>
+    </div>
+    <div class="win-chrome-btns">
+      <button type="button" class="win-chrome-btn" id="winMin" title="최소화" aria-label="최소화">&#8722;</button>
+      <button type="button" class="win-chrome-btn" id="winMax" title="최대화" aria-label="최대화">&#9633;</button>
+      <button type="button" class="win-chrome-btn win-chrome-close" id="winClose" title="닫기" aria-label="닫기">&#10005;</button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="메뉴">
+      <div class="sidebar-brand">
+        <h1 class="sidebar-title">3세대 음방시스템</h1>
+        <p class="sidebar-sub">학교 방송 컨트롤</p>
+      </div>
+      <div class="card cf-sync-card" id="cfSyncCard">
+        <h2 class="server-card-title">☁️ 클라우드 동기화</h2>
+        <div class="lan-mini" id="lanAccessBox">
+          <p class="lan-mini-label">같은 Wi-Fi 접속 주소</p>
+          <p class="lan-mini-url" id="lanPrimaryUrl" title="">불러오는 중…</p>
+          <button type="button" class="btn-ghost btn-sm btn-block" id="btnCopyLan">주소 복사</button>
+        </div>
+        <p class="cf-sync-status" id="cfSyncStatus">대기 중</p>
+        <button type="button" class="btn-cf-push btn-block" id="btnCfPush">
+          📤 앱 동기화
+        </button>
+        <button type="button" class="btn-cf-pull btn-block" id="btnCfPull">
+          📥 데이터베이스 동기화
+        </button>
+        <p class="cf-not-configured hint" id="cfNotConfigured" hidden>
+          ⚠️ 클라우드 연동에 실패했습니다. 인터넷 연결을 확인해 주세요.
+        </p>
+      </div>
+
+      <nav class="sidebar-nav" role="tablist">
+        <button type="button" class="sidebar-tab active" data-tab="playlist">플레이리스트</button>
+        <button type="button" class="sidebar-tab" data-tab="add">곡 추가</button>
+        <button type="button" class="sidebar-tab" data-tab="settings">설정</button>
+      </nav>
+
+      <button type="button" class="btn-ghost sidebar-logout" id="btnLogout">로그아웃</button>
+    </aside>
+
+    <div class="main-area">
+      <main class="tab-panels">
+        <section class="tab-panel active" id="panel-playlist">
+          <ul id="playlistList" class="playlist-list"></ul>
+          <p class="empty-hint" id="playlistEmpty">플레이리스트가 비어 있습니다.</p>
+        </section>
+
+        <section class="tab-panel" id="panel-add">
+          <div class="card search-card">
+            <h2 class="section-title">YouTube 검색</h2>
+            <div class="search-row">
+              <input type="search" id="searchInput" class="input" placeholder="곡명, 아티스트 검색" />
+              <button type="button" class="btn-primary" id="btnSearch">검색</button>
+            </div>
+            <div class="progress-wrap" id="searchProgressWrap" hidden>
+              <div class="progress-bar" id="searchProgressBar"></div>
+              <p class="progress-status" id="searchProgressStatus"></p>
+            </div>
+            <ul id="searchResults" class="search-results"></ul>
+          </div>
+          <div class="card">
+            <h2 class="section-title">YouTube 링크</h2>
+            <div class="search-row">
+              <input
+                type="url"
+                id="youtubeUrlInput"
+                class="input"
+                placeholder="https://youtu.be/... 또는 watch?v=..."
+                autocomplete="off"
+              />
+              <button type="button" class="btn-primary" id="btnAddYoutubeUrl">추가</button>
+            </div>
+            <p class="hint" id="youtubeUrlHint"></p>
+          </div>
+          <div class="card">
+            <h2 class="section-title">로컬 파일</h2>
+            <input type="file" id="localFileInput" accept=".mp4,.mkv,.mp3,.wav,.m4a,.webm,.ogg,.flac" hidden />
+            <button type="button" class="btn-secondary btn-block" id="btnPickLocal">파일 선택</button>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="panel-settings">
+          <div class="card">
+            <h2 class="section-title">방송 종료 화면</h2>
+            <input type="file" id="endImageInput" accept="image/*" hidden />
+            <button type="button" class="btn-secondary" id="btnEndImage">이미지 업로드</button>
+            <button type="button" class="btn-ghost" id="btnEndImageClear">초기화</button>
+            <p class="hint" id="endImageHint"></p>
+            <div class="end-image-preview-wrap" id="endImagePreviewWrap" hidden>
+              <p class="end-image-preview-label">미리보기</p>
+              <img id="endImagePreview" class="end-image-preview" alt="방송 종료 화면 미리보기" />
+            </div>
+          </div>
+          <div class="card">
+            <h2 class="section-title">관리자 비밀번호</h2>
+            <input type="password" id="currentPassword" class="input" placeholder="현재 비밀번호" />
+            <input type="password" id="newPassword" class="input" placeholder="새 비밀번호" />
+            <button type="button" class="btn-primary btn-block" id="btnChangePassword">비밀번호 변경</button>
+          </div>
+          <div class="card card-danger">
+            <h2 class="section-title">DB 계정 초기화</h2>
+            <p class="hint">로컬 계정을 <strong>admin / 1234</strong>로 초기화합니다. 웹 관리 포털과 동일한 계정으로 재설정됩니다.</p>
+            <button type="button" class="btn-danger btn-block" id="btnResetAccount">초기화</button>
+          </div>
+          <div class="card">
+            <h2 class="section-title">방송 브라우저</h2>
+            <p class="hint">방송 화면을 여는 프로그램 (자동재생·소리). Edge 없으면 Chrome 사용.</p>
+            <div class="browser-options" id="browserOptions">
+              <label class="radio-row"><input type="radio" name="broadcastBrowser" value="auto" checked /> 자동 (Edge → Chrome)</label>
+              <label class="radio-row"><input type="radio" name="broadcastBrowser" value="edge" /> Microsoft Edge</label>
+              <label class="radio-row"><input type="radio" name="broadcastBrowser" value="chrome" /> Google Chrome</label>
+            </div>
+            <p class="hint" id="browserAvailHint"></p>
+          </div>
+          <div class="card">
+            <h2 class="section-title">Windows 자동 실행</h2>
+            <label class="toggle-row">
+              <span>시작 시 자동 실행</span>
+              <input type="checkbox" id="autostartToggle" class="toggle" />
+            </label>
+          </div>
+          <div class="card">
+            <h2 class="section-title">☁️ Cloudflare 연동 설정</h2>
+            <p class="hint" style="margin-bottom:.75rem">서버: <strong>auto-music-player-backend.rukkit.workers.dev</strong></p>
+            <label class="toggle-row" style="margin:.6rem 0">
+              <span>앱 실행 시 자동 DB 동기화</span>
+              <input type="checkbox" id="cfAutoPull" class="toggle" checked />
+            </label>
+            <button type="button" class="btn-primary btn-block" id="btnSaveCfConfig">설정 저장</button>
+            <p class="hint cf-save-hint" id="cfSaveHint"></p>
+          </div>
+          <p class="settings-credit">Made by 신재원, 정규환</p>
+        </section>
+      </main>
+
+      <footer class="control-bar">
+        <div class="now-playing">
+          <p class="now-title" id="nowTitle">재생 중인 곡 없음</p>
+          <div
+            class="progress-track"
+            id="progressTrack"
+            role="slider"
+            aria-label="재생 위치"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+        <div class="control-buttons">
+          <button type="button" class="btn-control btn-start" id="btnBroadcastStart">▶ 방송</button>
+          <button type="button" class="btn-control" id="btnPrev" title="이전곡">⏮</button>
+          <button type="button" class="btn-control" id="btnPause">⏸</button>
+          <button type="button" class="btn-control" id="btnNext" title="다음곡">⏭</button>
+          <button type="button" class="btn-control btn-danger" id="btnStop">⏹</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div class="modal-overlay modal-overlay-priority" id="broadcastWarnModal" hidden>
+    <div class="modal card modal-wide">
+      <h2>자동 방송 안내</h2>
+      <div class="warn-body">
+        <p>자동 방송 사용 시 <strong>방송 화면(YouTube)</strong>에서 아래 행동을 하면 안 됩니다.</p>
+        <ul class="warn-list">
+          <li>재생 바(타임라인)를 드래그해 구간 이동</li>
+          <li>영상 건너뛰기·이전으로 이동</li>
+          <li>방송 화면에서 직접 다음 곡 재생</li>
+        </ul>
+        <p class="warn-em">반드시 이 컨트롤 패널의 버튼으로만 방송을 조작해 주세요.</p>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="broadcastWarnAck" />
+        <span>위 내용을 확인했습니다.</span>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="btnBroadcastWarnCancel">취소</button>
+        <button type="button" class="btn-primary" id="btnBroadcastWarnConfirm" disabled>확인 후 방송</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay modal-overlay-priority" id="displayModal" hidden>
+    <div class="modal card">
+      <h2>방송 화면 디스플레이</h2>
+      <ul id="displayList" class="display-list"></ul>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="btnDisplayCancel">취소</button>
+        <button type="button" class="btn-primary" id="btnDisplayConfirm">방송 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="onboarding-overlay" id="onboardingOverlay" hidden>
+    <div class="onboarding card">
+      <div id="onboardingViewport" class="onboarding-viewport">
+        <div class="onboarding-track" id="onboardingTrack">
+          <section class="onboarding-slide">
+            <p class="onboarding-kicker">환영합니다</p>
+            <h2>3세대 음방시스템</h2>
+            <p>학교 방송을 PC에서 쉽게 준비·제어할 수 있는 컨트롤 패널입니다. 처음 사용이시라면 다음 안내를 확인해 주세요.</p>
+          </section>
+          <section class="onboarding-slide">
+            <h2>사용 방법</h2>
+            <ol class="onboarding-list">
+              <li><strong>곡 추가</strong>에서 YouTube 검색·링크 또는 로컬 파일로 플레이리스트를 만듭니다.</li>
+              <li><strong>플레이리스트</strong>에서 순서를 드래그해 바꿀 수 있습니다.</li>
+              <li><strong>방송</strong> 버튼으로 방송 화면을 켜고 재생을 시작합니다.</li>
+              <li>같은 Wi-Fi의 다른 기기는 왼쪽 <strong>접속 주소</strong>로 패널에 접속할 수 있습니다.</li>
+            </ol>
+          </section>
+          <section class="onboarding-slide">
+            <h2>주의사항</h2>
+            <ul class="onboarding-list">
+              <li>방송 PC 앱에 <strong>로그인</strong>해야 방송 제어가 가능합니다.</li>
+              <li>Wi-Fi가 바뀌면 앱을 다시 실행하거나 페이지를 새로고침해 접속 주소를 확인하세요.</li>
+              <li>자동 방송 중에는 YouTube 화면에서 타임라인·건너뛰기를 하지 마세요.</li>
+              <li>이전/다음·일시정지·종료는 반드시 이 패널에서 조작하세요.</li>
+            </ul>
+          </section>
+          <section class="onboarding-slide">
+            <h2>약관 동의</h2>
+            <div class="terms-box">
+              <p>본 프로그램은 학교 방송 보조용입니다. 불법 복제·저작권 침해 콘텐츠 재생에 따른 책임은 사용자에게 있습니다. 방송 중 외부 화면 조작으로 인한 장애·중단에 대해 개발자는 책임지지 않습니다. 계정 정보는 로컬 PC에 저장됩니다.</p>
+            </div>
+            <label class="check-row">
+              <input type="checkbox" id="onboardingTerms" />
+              <span>위 약관에 동의하며 서비스를 사용합니다.</span>
+            </label>
+            <p class="hint onboarding-err" id="onboardingErr" hidden>약관에 동의해 주세요.</p>
+          </section>
+        </div>
+      </div>
+      <div class="onboarding-dots" id="onboardingDots"></div>
+      <div class="onboarding-actions">
+        <button type="button" class="btn-ghost" id="btnOnboardingPrev" hidden>이전</button>
+        <button type="button" class="btn-primary" id="btnOnboardingNext">다음</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay app-modal-overlay" id="appModal" hidden>
+    <div class="modal card app-modal">
+      <h2 id="appModalTitle">안내</h2>
+      <p id="appModalMessage" class="app-modal-message"></p>
+      <div class="modal-actions app-modal-actions">
+        <button type="button" class="btn-ghost" id="appModalCancel">취소</button>
+        <button type="button" class="btn-primary" id="appModalOk">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/window-chrome.js"></script>
+  <script src="/static/js/app-modal.js"></script>
+  <script src="/static/js/panel.js"></script>
+</body>
+</html>

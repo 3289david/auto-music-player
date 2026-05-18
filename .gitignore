@@ -1,0 +1,37 @@
+config.json
+playlist.json
+uploads/*
+!uploads/.gitkeep
+assets/*
+!assets/.gitkeep
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+WebView2Runtime/
+_wv2_unpack/
+dist/
+build/
+
+# Node / Cloudflare Worker
+backend/node_modules/
+backend/.wrangler/
+backend/.dev.vars
+
+# Website local env
+website/.env
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# App runtime logs
+*.log
+crash_*.txt
+

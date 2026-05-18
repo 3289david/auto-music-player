@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3세대 음방시스템</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+</head>
+<body class="auth-body">
+  <header class="win-chrome" id="winChrome">
+    <div class="win-chrome-drag">
+      <span class="win-chrome-title">3세대 음방시스템</span>
+    </div>
+    <div class="win-chrome-btns">
+      <button type="button" class="win-chrome-btn" id="winMin" title="최소화" aria-label="최소화">&#8722;</button>
+      <button type="button" class="win-chrome-btn" id="winMax" title="최대화" aria-label="최대화">&#9633;</button>
+      <button type="button" class="win-chrome-btn win-chrome-close" id="winClose" title="닫기" aria-label="닫기">&#10005;</button>
+    </div>
+  </header>
+  <div class="auth-body-wrap">
+  <div class="auth-card card">
+    <h1 class="auth-title">3세대 음방시스템</h1>
+    <p class="auth-sub" id="authSubtitle">학교 자동음악방송</p>
+    <form id="authForm" class="auth-form">
+      <label class="field-label">아이디</label>
+      <input type="text" id="username" class="input" autocomplete="username" required />
+      <label class="field-label">비밀번호</label>
+      <input type="password" id="password" class="input" autocomplete="current-password" required />
+      <p class="error-msg" id="errorMsg" hidden></p>
+      <p class="hint" id="successMsg" hidden>설정 완료. 이동 중…</p>
+      <button type="submit" class="btn-primary btn-block" id="submitBtn">시작하기</button>
+    </form>
+  </div>
+  </div>
+  <script src="/static/js/window-chrome.js"></script>
+  <script>
+    const MODE = "{{MODE}}";
+    const form = document.getElementById("authForm");
+    const errEl = document.getElementById("errorMsg");
+    const okEl = document.getElementById("successMsg");
+    const sub = document.getElementById("authSubtitle");
+    const submitBtn = document.getElementById("submitBtn");
+
+    if (MODE === "setup") {
+      document.title = "3세대 음방시스템 — 최초 설정";
+      sub.textContent = "관리자 계정을 만들어 주세요";
+      submitBtn.textContent = "계정 생성";
+    } else {
+      document.title = "3세대 음방시스템 — 로그인";
+      submitBtn.textContent = "로그인";
+    }
+
+    function goHome() {
+      submitBtn.disabled = true;
+      okEl.hidden = false;
+      errEl.hidden = true;
+      setTimeout(function () {
+        window.location.replace("/");
+      }, 80);
+    }
+
+    function parseJsonSafe(raw) {
+      if (!raw) return {};
+      try {
+        return JSON.parse(raw);
+      } catch (_) {
+        if (raw.indexOf('"ok"') >= 0 && raw.indexOf("true") >= 0) {
+          return { ok: true };
+        }
+        return {};
+      }
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      errEl.hidden = true;
+      okEl.hidden = true;
+      submitBtn.disabled = true;
+
+      const body = {
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+      };
+      const url = MODE === "setup" ? "/api/setup" : "/api/login";
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.withCredentials = true;
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+
+        const raw = xhr.responseText || "";
+        const data = parseJsonSafe(raw);
+
+        if (xhr.status >= 200 && xhr.status < 300 && data.ok !== false && !data.error) {
+          goHome();
+          return;
+        }
+
+        if (data.already_setup || (data.error && data.error.indexOf("이미 설정") >= 0)) {
+          window.location.replace(data.redirect || "/login");
+          return;
+        }
+
+        errEl.textContent = data.error || "오류가 발생했습니다";
+        errEl.hidden = false;
+        submitBtn.disabled = false;
+      };
+      xhr.onerror = function () {
+        errEl.textContent = "서버에 연결할 수 없습니다.";
+        errEl.hidden = false;
+        submitBtn.disabled = false;
+      };
+      xhr.send(JSON.stringify(body));
+    });
+  </script>
+</body>
+</html>
