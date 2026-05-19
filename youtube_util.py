@@ -25,7 +25,7 @@ _YT_FORMAT_CANDIDATES = (
     "best[acodec!=none][vcodec!=none]/"
     "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
     "bestvideo+bestaudio/"
-    "best"
+    "best",
 )
 
 

@@ -838,11 +838,7 @@
           playYoutube(item);
         } else {
           if (ytContainer) ytContainer.style.display = "none";
-          if (ytPlayer && ytPlayer.stopVideo) {
-            try {
-              ytPlayer.stopVideo();
-            } catch (e) {}
-          }
+          destroyYtPlayer();
           localVideo.style.display = "block";
           localVideo.muted = false;
           localVideo.volume = 1;
@@ -1028,14 +1024,20 @@
             localVideo.pause();
             return;
           }
-          if (ytPlayer && ytPlayer.playVideo) {
-            try {
-              ytPlayer.playVideo();
-              applyYoutubeQuality(ytPlayer);
-            } catch (e) {}
+          var activeItem = playlist[currentIndex];
+          var isLocalActive = streamPlaybackActive || (activeItem && activeItem.type !== "youtube");
+          if (isLocalActive) {
+            applyVolumeToPlayers();
+            localVideo.play().then(applyVolumeToPlayers).catch(function () {});
+          } else {
+            if (ytPlayer && ytPlayer.playVideo) {
+              try {
+                ytPlayer.playVideo();
+                applyYoutubeQuality(ytPlayer);
+              } catch (e) {}
+            }
+            applyVolumeToPlayers();
           }
-          applyVolumeToPlayers();
-          localVideo.play().then(applyVolumeToPlayers).catch(function () {});
         }
       });
 
